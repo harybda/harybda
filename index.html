@@ -1,7 +1,25 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="refresh" content="0;url=https://vk.com">
-  </head>
-  <body></body>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VK Auth Code</title>
+</head>
+<body>
+    <h2>Ваш код авторизации:</h2>
+    <p id="auth-code">Ожидание...</p>
+
+    <script>
+        function getAuthCode() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get("code");
+            if (code) {
+                document.getElementById("auth-code").textContent = code;
+            } else {
+                document.getElementById("auth-code").textContent = "Код не найден.";
+            }
+        }
+        window.onload = getAuthCode;
+    </script>
+</body>
 </html>
