@@ -1,19 +1,502 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>VK Redirect</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авторизация VK ID без SDK</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 2.25rem; /* text-4xl */
+            font-weight: 700; /* font-bold */
+        }
+        .btn-vk {
+            background-color: #0077ff;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 119, 255, 0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .btn-vk:hover {
+            background-color: #0056b3;
+        }
+        .btn-logout {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+        .btn-logout:hover {
+            background-color: #c82333;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: left;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .user-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .user-info h3 {
+            color: #343a40;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .user-info p {
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        .user-info img {
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            border: 3px solid #0077ff;
+        }
+    </style>
 </head>
 <body>
-    <script>
-        // Получаем параметры из URL
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        if (code) {
-            console.log("Полученный код:", code);
-            document.body.innerHTML = "<h2>Код авторизации: " + code + "</h2>";
-        } else {
-            document.body.innerHTML = "<h2>Ошибка: код не найден</h2>";
+    <div class="container">
+        <h1>Авторизация через VK ID</h1>
+        <button id="loginButton" class="btn-vk focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.5 12C22.5 5.03125 17.4688 0 10.5 0C4.3125 0 0 4.6875 0 10.5C0 16.3125 4.3125 21 10.5 21C14.0625 21 17.25 19.3125 19.5 16.5L20.25 17.25L22.5 19.5L24 18L22.5 16.5L21.75 15.75C22.125 14.625 22.5 13.3125 22.5 12ZM10.5 19.5C5.0625 19.5 1.5 15.75 1.5 10.5C1.5 5.25 5.0625 1.5 10.5 1.5C15.9375 1.5 19.5 5.25 19.5 10.5C19.5 15.75 15.9375 19.5 10.5 19.5ZM10.5 10.5C10.5 9.75 9.75 9 9 9C8.25 9 7.5 9.75 7.5 10.5C7.5 11.25 8.25 12 9 12C9.75 12 10.5 11.25 10.5 10.5ZM15 10.5C15 9.75 14.25 9 13.5 9C12.75 9 12 9.75 12 10.5C12 11.25 12.75 12 13.5 12C14.25 12 15 11.25 15 10.5Z" fill="white"/>
+            </svg>
+            Войти через VK ID
+        </button>
+
+        <button id="logoutButton" class="btn-logout hidden focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+            Выйти из аккаунта
+        </button>
+
+        <div id="messageDisplay" class="message hidden"></div>
+        <div id="userInfoDisplay" class="user-info hidden"></div>
+    </div>
+
+    <script type="text/javascript">
+        // --- Конфигурация ---
+        // !!! ВАЖНО: Замените эти значения на свои реальные CLIENT_ID и REDIRECT_URI !!!
+        const CLIENT_ID = '53013944'; // Ваш ID приложения VK ID
+        const REDIRECT_URI = 'https://selector-ads.ru/'; // URL, на который VK ID перенаправит после авторизации
+
+        // Права доступа, разделенные пробелами. Например: 'email phone offline'
+        // 'offline' нужен для получения refresh_token
+        const SCOPES = 'vkid.personal_info offline';
+
+        // --- Элементы DOM ---
+        const loginButton = document.getElementById('loginButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const messageDisplay = document.getElementById('messageDisplay');
+        const userInfoDisplay = document.getElementById('userInfoDisplay');
+
+        // --- Вспомогательные функции для PKCE ---
+
+        /**
+         * Генерирует случайную строку заданной длины.
+         * Используется для code_verifier и state.
+         * @param {number} length Длина генерируемой строки.
+         * @returns {string} Случайная строка.
+         */
+        function generateRandomString(length) {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            let text = '';
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
         }
+
+        /**
+         * Вычисляет SHA-256 хеш от строки.
+         * @param {string} plain Строка для хеширования.
+         * @returns {Promise<ArrayBuffer>} Promise, который разрешается с ArrayBuffer хеша.
+         */
+        async function sha256(plain) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            return hashBuffer;
+        }
+
+        /**
+         * Кодирует ArrayBuffer в Base64url.
+         * @param {ArrayBuffer} buffer Буфер для кодирования.
+         * @returns {string} Base64url-кодированная строка.
+         */
+        function base64urlencode(buffer) {
+            // btoa() кодирует бинарные данные в Base64
+            // String.fromCharCode(...new Uint8Array(buffer)) преобразует ArrayBuffer в строку
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+                .replace(/\+/g, '-') // Заменяем '+' на '-'
+                .replace(/\//g, '_') // Заменяем '/' на '_'
+                .replace(/=+$/, ''); // Удаляем завершающие '='
+        }
+
+        /**
+         * Генерирует code_verifier и code_challenge для PKCE.
+         * @returns {Promise<{codeVerifier: string, codeChallenge: string}>} Объект с code_verifier и code_challenge.
+         */
+        async function generatePKCE() {
+            // code_verifier должен быть длиной от 43 до 128 символов
+            const codeVerifier = generateRandomString(128);
+            const hashed = await sha256(codeVerifier);
+            const codeChallenge = base64urlencode(hashed);
+            return { codeVerifier, codeChallenge };
+        }
+
+        // --- Функции UI и состояния ---
+
+        /**
+         * Отображает сообщение на экране.
+         * @param {string} message Текст сообщения.
+         * @param {string} type Тип сообщения ('success' или 'error').
+         */
+        function showMessage(message, type) {
+            messageDisplay.textContent = message;
+            messageDisplay.className = `message ${type}`;
+            messageDisplay.classList.remove('hidden');
+        }
+
+        /**
+         * Очищает сообщение.
+         */
+        function clearMessage() {
+            messageDisplay.classList.add('hidden');
+            messageDisplay.textContent = '';
+        }
+
+        /**
+         * Отображает информацию о пользователе.
+         * @param {Object} userInfo Объект с данными пользователя.
+         */
+        function showUserInfo(userInfo) {
+            userInfoDisplay.innerHTML = `
+                <h3>Информация о пользователе:</h3>
+                ${userInfo.avatar ? `<img src="${userInfo.avatar}" alt="Аватар пользователя">` : ''}
+                <p><strong>ID:</strong> ${userInfo.user_id || 'N/A'}</p>
+                <p><strong>Имя:</strong> ${userInfo.first_name || 'N/A'}</p>
+                <p><strong>Фамилия:</strong> ${userInfo.last_name || 'N/A'}</p>
+                <p><strong>Email:</strong> ${userInfo.email || 'N/A'}</p>
+                <p><strong>Телефон:</strong> ${userInfo.phone || 'N/A'}</p>
+            `;
+            userInfoDisplay.classList.remove('hidden');
+            loginButton.classList.add('hidden');
+            logoutButton.classList.remove('hidden');
+        }
+
+        /**
+         * Скрывает информацию о пользователе и показывает кнопку входа.
+         */
+        function hideUserInfo() {
+            userInfoDisplay.classList.add('hidden');
+            userInfoDisplay.innerHTML = '';
+            loginButton.classList.remove('hidden');
+            logoutButton.classList.add('hidden');
+        }
+
+        // --- Основные функции авторизации ---
+
+        /**
+         * Инициирует процесс авторизации VK ID.
+         */
+        async function initiateVKIDLogin() {
+            clearMessage();
+            try {
+                const { codeVerifier, codeChallenge } = await generatePKCE();
+                const state = generateRandomString(32); // state должен быть не менее 32 символов
+
+                // Сохраняем code_verifier и state в sessionStorage для последующей проверки
+                sessionStorage.setItem('vk_code_verifier', codeVerifier);
+                sessionStorage.setItem('vk_state', state);
+
+                const authUrl = new URL('https://id.vk.com/authorize');
+                authUrl.searchParams.append('response_type', 'code');
+                authUrl.searchParams.append('client_id', CLIENT_ID);
+                authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
+                authUrl.searchParams.append('scope', SCOPES);
+                authUrl.searchParams.append('state', state);
+                authUrl.searchParams.append('code_challenge', codeChallenge);
+                authUrl.searchParams.append('code_challenge_method', 'S256');
+                // authUrl.searchParams.append('lang_id', '0'); // Опционально: язык интерфейса (0 для русского)
+                // authUrl.searchParams.append('scheme', 'light'); // Опционально: тема формы (light/dark)
+
+                window.location.assign(authUrl.toString());
+            } catch (error) {
+                console.error('Ошибка при инициализации авторизации:', error);
+                showMessage('Не удалось начать процесс авторизации. Попробуйте снова.', 'error');
+            }
+        }
+
+        /**
+         * Обменивает авторизационный код на токены.
+         * @param {string} code Код авторизации, полученный от VK ID.
+         * @param {string} codeVerifier code_verifier, сохраненный ранее.
+         * @param {string} deviceId Идентификатор устройства, полученный от VK ID.
+         * @returns {Promise<Object>} Promise, который разрешается с объектом токенов.
+         */
+        async function exchangeCodeForTokens(code, codeVerifier, deviceId) {
+            const tokenUrl = 'https://id.vk.com/oauth2/auth';
+            const params = new URLSearchParams();
+            params.append('grant_type', 'authorization_code');
+            params.append('client_id', CLIENT_ID);
+            params.append('code', code);
+            params.append('code_verifier', codeVerifier);
+            params.append('device_id', deviceId);
+            params.append('redirect_uri', REDIRECT_URI); // Важно: redirect_uri должен совпадать!
+
+            try {
+                const response = await fetch(tokenUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString()
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Ошибка при обмене кода: ${errorData.error_description || response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Получены токены:', data);
+
+                // Сохраняем токены. ВНИМАНИЕ: Для продакшн-приложений refresh_token
+                // должен храниться на бэкенде для максимальной безопасности.
+                sessionStorage.setItem('vk_access_token', data.access_token);
+                sessionStorage.setItem('vk_refresh_token', data.refresh_token);
+                sessionStorage.setItem('vk_id_token', data.id_token);
+                sessionStorage.setItem('vk_user_id', data.user_id); // Сохраняем user_id
+
+                return data;
+            } catch (error) {
+                console.error('Ошибка обмена кода на токены:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Получает информацию о пользователе с помощью Access Token.
+         * @param {string} accessToken Access Token пользователя.
+         * @returns {Promise<Object>} Promise, который разрешается с объектом информации о пользователе.
+         */
+        async function getUserInfo(accessToken) {
+            const userInfoUrl = 'https://id.vk.com/oauth2/user_info';
+            const params = new URLSearchParams();
+            params.append('access_token', accessToken);
+            params.append('client_id', CLIENT_ID); // client_id также требуется для user_info
+
+            try {
+                const response = await fetch(userInfoUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString()
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Ошибка при получении информации о пользователе: ${errorData.error_description || response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Информация о пользователе:', data);
+                return data.user;
+            } catch (error) {
+                console.error('Ошибка получения информации о пользователе:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Инвалидирует Access Token (выход из аккаунта).
+         * @param {string} accessToken Access Token для инвалидации.
+         */
+        async function invalidateToken(accessToken) {
+            const logoutUrl = 'https://id.vk.com/oauth2/logout';
+            const params = new URLSearchParams();
+            params.append('client_id', CLIENT_ID);
+            params.append('access_token', accessToken);
+
+            try {
+                const response = await fetch(logoutUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString()
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Ошибка при выходе: ${errorData.error_description || response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Выход из аккаунта:', data);
+                return data;
+            } catch (error) {
+                console.error('Ошибка при инвалидации токена:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Обрабатывает редирект после авторизации VK ID.
+         */
+        async function handleVKIDRedirect() {
+            clearMessage();
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const deviceId = urlParams.get('device_id');
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+
+            // Если есть ошибка в URL, выводим ее
+            if (error) {
+                showMessage(`Ошибка авторизации VK ID: ${errorDescription || error}`, 'error');
+                // Очищаем параметры URL, чтобы не вызывать ошибку повторно при перезагрузке
+                window.history.replaceState({}, document.title, REDIRECT_URI);
+                return;
+            }
+
+            // Если нет кода, значит это не редирект авторизации
+            if (!code) {
+                // Проверяем, есть ли уже токены в sessionStorage
+                if (sessionStorage.getItem('vk_access_token')) {
+                    const accessToken = sessionStorage.getItem('vk_access_token');
+                    try {
+                        const userInfo = await getUserInfo(accessToken);
+                        showMessage('Вы уже авторизованы.', 'success');
+                        showUserInfo(userInfo);
+                    } catch (e) {
+                        console.error('Ошибка при получении информации о пользователе из сохраненного токена:', e);
+                        showMessage('Сессия истекла или токен недействителен. Пожалуйста, войдите снова.', 'error');
+                        hideUserInfo();
+                        // Очищаем устаревшие токены
+                        sessionStorage.clear();
+                    }
+                } else {
+                    hideUserInfo(); // Скрываем информацию и показываем кнопку входа
+                }
+                return;
+            }
+
+            // Получаем сохраненные code_verifier и state
+            const storedCodeVerifier = sessionStorage.getItem('vk_code_verifier');
+            const storedState = sessionStorage.getItem('vk_state');
+
+            // Очищаем сохраненные значения сразу после получения (они одноразовые)
+            sessionStorage.removeItem('vk_code_verifier');
+            sessionStorage.removeItem('vk_state');
+
+            // Проверяем state для защиты от CSRF
+            if (state !== storedState) {
+                showMessage('Ошибка безопасности: state не совпадает. Пожалуйста, попробуйте войти снова.', 'error');
+                // Очищаем параметры URL
+                window.history.replaceState({}, document.title, REDIRECT_URI);
+                return;
+            }
+
+            // Обмениваем код на токены
+            try {
+                const tokens = await exchangeCodeForTokens(code, storedCodeVerifier, deviceId);
+                showMessage('Авторизация VK ID успешна! Токены получены.', 'success');
+
+                // Получаем и отображаем информацию о пользователе
+                const userInfo = await getUserInfo(tokens.access_token);
+                showUserInfo(userInfo);
+
+            } catch (e) {
+                showMessage(`Ошибка при обмене кода на токены: ${e.message}`, 'error');
+            } finally {
+                // Очищаем параметры URL после обработки, чтобы при перезагрузке страницы не было повторной обработки
+                window.history.replaceState({}, document.title, REDIRECT_URI);
+            }
+        }
+
+        /**
+         * Обрабатывает выход пользователя.
+         */
+        async function handleLogout() {
+            clearMessage();
+            const accessToken = sessionStorage.getItem('vk_access_token');
+            if (accessToken) {
+                try {
+                    await invalidateToken(accessToken);
+                    showMessage('Вы успешно вышли из аккаунта VK ID.', 'success');
+                } catch (e) {
+                    showMessage(`Ошибка при выходе: ${e.message}`, 'error');
+                }
+            } else {
+                showMessage('Вы не авторизованы.', 'error');
+            }
+            // Очищаем все токены и информацию из sessionStorage
+            sessionStorage.clear();
+            hideUserInfo();
+        }
+
+        // --- Инициализация при загрузке страницы ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loginButton.addEventListener('click', initiateVKIDLogin);
+            logoutButton.addEventListener('click', handleLogout);
+
+            // Запускаем обработчик редиректа при загрузке страницы
+            handleVKIDRedirect();
+        });
     </script>
 </body>
 </html>
